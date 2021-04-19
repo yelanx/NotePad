@@ -1,0 +1,421 @@
+> 本文由 [简悦 SimpRead](http://ksria.com/simpread/) 转码， 原文地址 [juejin.cn](https://juejin.cn/post/6950209377403928584)
+
+CSS in JS
+---------
+
+`CSS in JS`是一种解决 css 问题想法的集合，而不是一个指定的库。从`CSS in JS`的字面意思可以看出，它是将 css 样式写在 JavaScript 文件中，而不需要独立出`.css`、`.less`之类的文件。将 css 放在 js 中使我们更方便的使用 js 的`变量`、`模块化`、`tree-shaking`。还解决了 css 中的一些问题，譬如：`更方便解决基于状态的样式`，`更容易追溯依赖关系`，`生成唯一的选择器来锁定作用域`。尽管`CSS in JS`不是一个很新的技术，但国内的普及程度并不高。由于 Vue 和 Angular 都有属于他们自己的一套定义样式的方案，React 本身也没有管用户怎样定义[组件的样式](https://reactjs.org/docs/faq-styling.html)，所以`CSS in JS`在 React 社区的热度比较高。
+
+目前为止实现`CSS in JS`的第三方库有很多: [点击这里](http://michelebertoli.github.io/css-in-js/)。像 [JSS](https://cssinjs.org/)、[styled-components](https://styled-components.com/) 等。在这里我们就不展开赘述了 (相关链接已放在下方)，这篇文章的重点是`JS in CSS`😀。
+
+JS in CSS 又是什么
+--------------
+
+在上面我们提到`CSS in JS`就是把 CSS 写在 JavaScript 中，那么`JS in CSS`我们可以推断出就是可以在 CSS 中使用 JavaScript 脚本，如下所示。可以在 CSS 中编写 Paint API 的功能。还可以访问：ctx，geom。甚至我们还可以编写自己的 css 自定义属性等。这些功能的实现都基于 [CSS Houdini](https://developer.mozilla.org/en-US/docs/Web/Houdini)。
+
+```
+.el {
+  --color: cyan;
+  --multiplier: 0.24;
+  --pad: 30;
+  --slant: 20;
+  --background-canvas: (ctx, geom) => {
+    let multiplier = var(--multiplier);
+    let c = `var(--color)`;
+    let pad = var(--pad);
+    let slant = var(--slant);
+
+    ctx.moveTo(0, 0);
+    ctx.lineTo(pad + (geom.width - slant - pad) * multiplier, 0);
+    ctx.lineTo(pad + (geom.width - slant - pad) * multiplier + slant, geom.height);
+    ctx.lineTo(0, geom.height);
+    ctx.fillStyle = c;
+    ctx.fill();
+  };
+  background: paint(background-canvas);
+  transition: --multiplier .4s;
+}
+.el:hover {
+  --multiplier: 1;
+}
+复制代码
+```
+
+[上述在线 demo 点击这里](https://codepen.io/xqy279/project/editor/AEbOBq#)
+
+Houdini 解决了什么问题
+---------------
+
+### CSS 与 JS 的标准制定流程对比
+
+在如今的 Web 开发中，JavaScript 几乎占据了项目代码的大部分。我们可以在项目开发中使用 ES 2020、ES2021、甚至提案中的新特性（如:[Decorator](https://github.com/tc39/proposal-decorators)），即使浏览器尚未支持，也可以编写`Polyfill`或使用`Babel`之类的工具进行转译，让我们可以将最新的特性应用到生产环境中（如下图所示）。
+
+![](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/4284b3d0960d424f868f9399b6297d07~tplv-k3u1fbpfcp-watermark.image)
+
+而 CSS 就不同了，除了制定 CSS 标准规范所需的时间外，各家浏览器的版本、实战进度差异更是旷日持久（如下图所示），最多利用 PostCSS、Sass 等工具來帮我们转译出浏览器能接受的 CSS。开发者们能操作的就是通过 JS 去控制`DOM`与`CSSOM`来影响页面的变化，但是对于接下來的`Layout`、`Paint`与`Composite`就几乎没有控制权了。为了解决上述问题，为了让 CSS 的魔力不在受到浏览器的限制，`Houdini`就此诞生。
+
+![](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/9c89d49899f446478392d30d09fc2391~tplv-k3u1fbpfcp-watermark.image)
+
+### CSS Polyfill
+
+我们上文中提到 JavaScript 中进入提案中的特性我们可以编写 Polyfill，只需要很短的时间就可以讲新特性投入到生产环境中。这时，脑海中闪现出的第一个想法就是`CSS Polyfill`，只要 CSS 的 Polyfill 足够强大，CSS 或许也能有 JavaScript 一样的发展速度，令人可悲的是编写`CSS Polyfill`异常的困难，并且大多数情况下无法在不破坏性能的情况下进行。这是因为 JavaScript 是一门[动态脚本语言](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript)。它带来了极强的扩展性，正是因为这样，我们可以很轻松使用 JavaScript 做出 JavaScript 的 Polyfill。但是 CSS 不是动态的，在某些场景下，我们可以在编译时将一种形式的 CSS 的转换成另一种 (如 [PostCSS](https://github.com/postcss/postcss))。如果你的 Polyfill 依赖于 DOM 结构或者某一个元素的布局、定位等，那么我们的 Polyfill 就无法编译时执行，而需要在浏览器中运行了。不幸的是，在浏览器中实现这种方案非常不容易。
+
+![](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/30bef60320714d6caf1f9856bbe6d8ac~tplv-k3u1fbpfcp-watermark.image)
+
+如上图所示，是从浏览器获取到 HTML 到渲染在屏幕上的全过程，我们可以看到只有带颜色（粉色、蓝色）的部分是 JavaScript 可以控制的环节。首先我们根本无法控制浏览器解析 HTML 与 CSS 并将其转化为`DOM`与`CSSOM`的过程，以及`Cascade`,`Layout`,`Paint`,`Composite`我们也无能为力。整个过程中我们唯一完全可控制的就是`DOM`，另外`CSSOM`部分可控。
+
+CSS Houdini 草案中提到，这种程度的暴露是不确定的、兼容性不稳定的以及缺乏对关键特性的支持的。比如，在浏览器中的 `CSSOM` 是不会告诉我们它是如何处理跨域的样式表，而且对于浏览器无法解析的 CSS 语句它的处理方式就是不解析了，也就是说——如果我们要用 `CSS polyfill` 让浏览器去支持它尚且不支持的属性，那就不能在 `CSSOM` 这个环节做，我们只能遍历一遍 DOM，找到 `<style>` 或 `<link rel="stylesheet">` 标签，获取其中的 CSS 样式、解析、重写，最后再加回 DOM 树中。令人尴尬的是，这样 DOM 树全部刷新了，会导致页面的重新渲染（如下如所示）。
+
+![](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/78154e7938c6442ea3ab2101a271b5f9~tplv-k3u1fbpfcp-watermark.image)
+
+即便如此，有的人可能会说：“除了这种方法，我们也别无选择，更何况对网站的性能也不会造成很大的影响”。那么对于部分网站是这样的。但如果我们的`Polyfill`是需要对可交互的页面呢？例如`scroll`，`resize`，`mousemove`，`keyup`等等，这些事件随时会被触发，那么意味着随时都会导致页面的重新渲染，交互不会像原本那样丝滑，甚至导致页面崩溃，对用户的体验也极其不好。
+
+综上所述，如果我们想让浏览器解析它不认识的样式（低版本浏览器使用 grid 布局），然而渲染流程我们无法介入，我们也只能通过手动更新 DOM 的方式，这样会带来很多问题，`Houdini`的出现正是致力于解决他们。
+
+Houdini API
+-----------
+
+Houdini 是一组底层 API，它公开了 CSS 引擎的各个部分，如下图所示展示了每个环节对应的新 API（灰色部分各大浏览器还未实现），从而使开发人员能够通过加入浏览器渲染引擎的样式和布局过程来扩展 CSS。Houdini 是一群来自 Mozilla，Apple，Opera，Microsoft，HP，Intel 和 Google 的工程师组成的工作小组设计而成的。它们使开发者可以直接访问 CSS 对象模型（CSSOM），使开发人员可以编写浏览器可以解析为 CSS 的代码，从而创建新的 CSS 功能，而无需等待它们在浏览器中本地实现。
+
+![](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/063ad1196ae342c98b9c51ce9b3e29c2~tplv-k3u1fbpfcp-watermark.image)
+
+### Properties & Values API
+
+尽管当前已经有了 CSS 变量，可以让开发者控制属性值，但是无法约束类型或者更严格的定义，CSS Houdini 新的 API，我们可以扩展 css 的变量，我们可以定义 CSS 变量的`类型`,`初始值`,`继承`。它是 css 变量更强大灵活。
+
+CSS 变量现状：
+
+```
+.dom {
+  --my-color: green;
+  --my-color: url('not-a-color'); // 它并不知道当前的变量类型
+  color: var(--my-color);
+}
+
+复制代码
+```
+
+Houdini 提供了两种自定义属性的注册方式，分别是在 js 和 css 中。
+
+```
+CSS.registerProperty({
+  name: '--my-prop', // String 自定义属性名
+  syntax: '<color>', // String 如何去解析当前的属性，即属性类型，默认 *
+  inherits: false, // Boolean 如果是true，子节点将会继承
+  initialValue: '#c0ffee', // String 属性点初始值
+});
+复制代码
+```
+
+我们还可以在 css 中注册，也可以达到上面的效果
+
+```
+@property --my-prop {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: #c0ffee;
+}
+复制代码
+```
+
+这个 API 中最令人振奋人心的功能是自定义属性上添加动画，像这样：`transition: --multiplier 0.4s;`，这个功能我们在前面介绍什么是 js in css 那个 [demo](https://codepen.io/xqy279/project/editor/AEbOBq#) 用使用过。我们还可以使用`+`使`syntax`属性支持一个或多个类型，也可以使用`|`来分割。更多`syntax`属性值：
+
+<table><thead><tr><th>属性值</th><th>描述</th></tr></thead><tbody><tr><td><code>&lt;length&gt;</code></td><td>长度值</td></tr><tr><td><code>&lt;number&gt;</code></td><td>数字</td></tr><tr><td><code>&lt;percentage&gt;</code></td><td>百分比</td></tr><tr><td><code>&lt;length-percentage&gt;</code></td><td>长度或百分比, calc 将长度和百分比组成的表达式</td></tr><tr><td><code>&lt;color&gt;</code></td><td>颜色</td></tr><tr><td><code>&lt;image&gt;</code></td><td>图像</td></tr><tr><td><code>&lt;url&gt;</code></td><td>网址</td></tr><tr><td><code>&lt;integer&gt;</code></td><td>整数</td></tr><tr><td><code>&lt;angle&gt;</code></td><td>角度</td></tr><tr><td><code>&lt;time&gt;</code></td><td>时间</td></tr><tr><td><code>&lt;resolution&gt;</code></td><td>分辨率</td></tr><tr><td><code>&lt;transform-list&gt;</code></td><td>转换函数</td></tr><tr><td><code>&lt;custom-ident&gt;</code></td><td>ident</td></tr></tbody></table>
+
+### Worklets
+
+`Worklets`是渲染引擎的扩展，从概念上来讲它类似于 [Web Workers](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API)，但有几个重要的区别：
+
+1.  设计为并行，每个`Worklets`必须始终有两个或更多的实例，它们中的任何一个都可以在被调用时运行
+2.  作用域较小，限制不能访问全局作用域的 API（Worklet 的函数除外）
+3.  渲染引擎会在需要的时候调用他们，而不是我们手动调用
+
+Worklet 是一个 JavaScript 模块，通过调用 worklet 的 addModule 方法（它是个 Promise）来添加。比如`registerLayout`, `registerPaint`, `registerAnimator` 我们都需要放在 Worklet 中
+
+```
+//加载单个
+await demoWorklet.addModule('path/to/script.js');
+
+// 一次性加载多个worklet
+Promise.all([
+  demoWorklet1.addModule('script1.js'),
+  demoWorklet2.addModule('script2.js'),
+]).then(results => {});
+
+registerDemoWorklet('name', class {
+
+  // 每个Worklet可以定义要使用的不同函数
+  // 他们将由渲染引擎在需要时调用
+  process(arg) {
+    return !arg;
+  }
+});
+
+复制代码
+```
+
+**Worklets 的生命周期**
+
+![](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/700cbff8cb9b416d822070e8d79b7d42~tplv-k3u1fbpfcp-watermark.image)
+
+1.  Worklet 的生命周期从渲染引擎内开始
+2.  对于 JavaScript，渲染引擎启动 JavaScript 主线程
+3.  然后他将启动多个 worklet 进程，并且可以运行。这些进程理想情况下是独立于主线程的线程，这样就不会阻塞主线程 (但它们也不需要阻塞)
+4.  然后在主线程中加载我们浏览器的 JavaScript
+5.  该 JavaScript 调用 `worklet.addModule` 并异步加载一个 worklet
+6.  加载后，将 worklet 加载到两个或多个可用的 worklet 流程中
+7.  当需要时，渲染引擎将通过从加载的 Worklet 中调用适当的处理函数来执行 Worklet。该调用可以针对任何并行的 Worklet 实例。
+
+### Typed OM
+
+`Typed OM`是对现有的`CSSOM`的扩展，并实现 `Parsing API` 和 `Properties & Values API`相关的特性。它将 css 值转化为有意义类型的 JavaScript 的对象，而不是像现在的字符串。如果我们尝试将字符串类型的值转化为有意义的类型并返回可能会有很大的性能开销，因此这个 API 可以让我们更高效的使用 CSS 的值。
+
+现在读取 CSS 值增加了新的基类`CSSStyleValue`，他有许多的子类可以更加精准的描述 css 值的类型：
+
+<table><thead><tr><th>子类</th><th>描述</th></tr></thead><tbody><tr><td>CSSKeywordValue</td><td>CSS 关键字和其他标识符（如 inherit 或 grid）</td></tr><tr><td>CSSPositionValue</td><td>位置信息 (x,y)</td></tr><tr><td>CSSImageValue</td><td>表示图像的值属性的对象</td></tr><tr><td>CSSUnitValue</td><td>表示为具有单个单位的单个值（例如 50px），也可以表示为没有单位的单个值或百分比</td></tr><tr><td>CSSMathValue</td><td>比较复杂的数值，比如有 calc，min 和 max。这包括子类 <code>CSSMathSum</code>, <code>CSSMathProduct</code>, <code>CSSMathMin</code>, <code>CSSMathMax</code>, <code>CSSMathNegate</code> 和 <code>CSSMathInvert</code></td></tr><tr><td>CSSTransformValue</td><td>由<code>CSS transforms</code>组成的<code>CSSTransformComponent</code>列表，其中包括<code>CSSTranslate</code>, <code>CSSRotate</code>, <code>CSSScale</code>, <code>CSSSkew</code>, <code>CSSSkewX</code>, <code>CSSSkewY</code>, <code>CSSPerspective</code> 和 <code>CSSMatrixComponent</code></td></tr></tbody></table>
+
+使用`Typed OM`主要有两种方法：
+
+1.  通过`attributeStyleMap`设置和获取有类型的行间样式
+2.  通过`computedStyleMap`获取元素完整的`Typed OM`样式
+
+**使用 attributeStyleMap 设置并获取**
+
+```
+myElement.attributeStyleMap.set('font-size', CSS.em(2));
+myElement.attributeStyleMap.get('font-size'); // CSSUnitValue { value: 2, unit: 'em' }
+
+myElement.attributeStyleMap.set('opacity', CSS.number(.5));
+myElement.attributeStyleMap.get('opacity'); // CSSUnitValue { value: 0.5, unit: 'number' };
+复制代码
+```
+
+[在线 demo](https://codepen.io/xqy279/pen/wvgeNMM)
+
+**使用 computedStyleMap**
+
+```
+.foo {
+  transform: translateX(1em) rotate(50deg) skewX(10deg);
+  vertical-align: baseline;
+  width: calc(100% - 3em);
+}
+复制代码
+```
+
+```
+const cs = document.querySelector('.foo').computedStyleMap();
+
+cs.get('vertical-align');
+// CSSKeywordValue {
+//  value: 'baseline',
+// }
+
+cs.get('width');
+// CSSMathSum {
+//   operator: 'sum',
+//   length: 2,
+//   values: CSSNumericArray {
+//     0: CSSUnitValue { value: -90, unit: 'px' },
+//     1: CSSUnitValue { value: 100, unit: 'percent' },
+//   },
+// }
+
+cs.get('transform');
+// CSSTransformValue {
+//   is2d: true,
+//   length: 3,
+//   0: CSSTranslate {
+//     is2d: true,
+//     x: CSSUnitValue { value: 20, unit: 'px' },
+//     y: CSSUnitValue { value: 0, unit: 'px' },
+//     z: CSSUnitValue { value: 0, unit: 'px' },
+//   },
+//   1: CSSRotate {...},
+//   2: CSSSkewX {...},
+// }
+复制代码
+```
+
+[在线 demo](https://codepen.io/xqy279/pen/OJWgdZR)
+
+### Layout API
+
+开发者可以通过这个 API 实现自己的布局算法，我们可以像原生 css 一样使用我们自定义的布局（像`display:flex`, `display:table`）。在 [Masonry layout library](https://github.com/desandro/masonry) 上我们可以看到开发者们是有多想实现各种各样的复杂布局，其中一些布局光靠 CSS 是不行的。虽然这些布局会让人耳目一新印象深刻，但是它们的页面性能往往都很差，在一些低端设备上性能问题犹为明显。
+
+CSS Layout API 暴露了一个`registerLayout`方法给开发者，接收一个布局名（layout name）作为后面在 CSS 中使用的属性值，还有一个包含有这个布局逻辑的 JavaScript 类。
+
+```
+my-div {
+  display: layout(my-layout);
+}
+复制代码
+```
+
+```
+// layout-worklet.js
+registerLayout('my-layout', class {
+  static get inputProperties() { return ['--foo']; }
+  
+  static get childrenInputProperties() { return ['--bar']; }
+  
+  async intrinsicSizes(children, edges, styleMap) {}
+
+  async layout(children, edges, constraints, styleMap) {}
+});
+复制代码
+```
+
+```
+await CSS.layoutWorklet.addModule('layout-worklet.js');
+复制代码
+```
+
+[在线 demo](https://css-houdini.rocks/masonry) 目前浏览器大部分还不支持
+
+### Painting API
+
+我们可以在 CSS `background-image`中使用它，我们可以使用 Canvas 2d 上下文，根据元素的大小控制图像，还可以使用自定义属性。
+
+```
+await CSS.paintWorklet.addModule('paint-worklet.js');
+复制代码
+```
+
+```
+registerPaint('sample-paint', class {
+  static get inputProperties() { return ['--foo']; }
+
+  static get inputArguments() { return ['<color>']; }
+
+  static get contextOptions() { return {alpha: true}; }
+
+  paint(ctx, size, props, args) { }
+});
+复制代码
+```
+
+[在线 demo](https://codepen.io/xqy279/pen/rNjzwmb?editors=0110)
+
+### Animation API
+
+这个 API 让我们可以控制基于用户输入的关键帧动画，并且以非阻塞的方式。还能更改一个 DOM 元素的属性，不过是不会引起渲染引擎重新计算布局或者样式的属性，比如 transform、opacity 或者滚动条位置（scroll offset）。`Animation API`的使用方式与 `Paint API` 和 `Layout API`略有不同我们还需要通过`new`一个`WorkletAnimation`来注册 worklet。
+
+```
+// animation-worklet.js
+registerAnimator('sample-animator', class {
+  constructor(options) {
+  }
+  animate(currentTime, effect) {
+    effect.localTime = currentTime;
+  }
+});
+复制代码
+```
+
+```
+await CSS.animationWorklet.addModule('animation-worklet.js');
+
+// 需要添加动画的元素
+const elem = document.querySelector('#my-elem');
+const scrollSource = document.scrollingElement;
+const timeRange = 1000;
+const scrollTimeline = new ScrollTimeline({
+  scrollSource,
+  timeRange,
+});
+
+const effectKeyframes = new KeyframeEffect(
+  elem,
+  // 动画需要绑定的关键帧
+  [
+    {transform: 'scale(1)'},
+    {transform: 'scale(.25)'},
+    {transform: 'scale(1)'}
+  ],
+  {
+    duration: timeRange,
+  },
+);
+new WorkletAnimation(
+  'sample-animator',
+  effectKeyframes,
+  scrollTimeline,
+  {},
+).play();
+复制代码
+```
+
+[关于此 API 的更多内容点击这里](https://github.com/w3c/css-houdini-drafts/tree/main/css-animation-worklet-1)
+
+### Parser API
+
+允许开发者自由扩展 CSS 词法分析器。
+
+解析规则：
+
+```
+const background = window.cssParse.rule("background: green");
+console.log(background.styleMap.get("background").value) // "green"
+
+const styles = window.cssParse.ruleSet(".foo { background: green; margin: 5px; }");
+console.log(styles.length) // 5
+console.log(styles[0].styleMap.get("margin-top").value) // 5
+console.log(styles[0].styleMap.get("margin-top").type) // "px"
+复制代码
+```
+
+解析 CSS：
+
+```
+const style = fetch("style.css")
+        .then(response => CSS.parseStylesheet(response.body));
+style.then(console.log);
+复制代码
+```
+
+### Font Metrics API
+
+它将提供一些方法来测量在屏幕上呈现的文本元素的尺寸，将允许开发者控制文本元素在屏幕上呈现的方式。使用当前功能很难或无法测量这些值，因此该 API 将使开发者可以更轻松地创建与文本和字体相关的 CSS 特性。例如：
+
+*   flex 布局: `align-items` baseline 特性。需要知道每一个 flex 盒子中第一个元素的基线位置。
+*   首字母: 需要知道每个字母的基线高度和字母最大的高度，以及换行内容的基线长度。
+*   单个字形的前进和后退。
+*   换行: 需要访问字体数据，文本的所有样式输入以及布局信息（可用的段落长度等）。
+*   元素中的每一个`line boxes`都需要一个基线。(`line boxes`代表包含众多`inline boxes`的这行)
+
+Houdini 目前进展
+------------
+
+![](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/cf26d5cc95ec4595beb9cb2a2d8fd489~tplv-k3u1fbpfcp-watermark.image)
+
+[点击这里可查看该网站](https://ishoudinireadyyet.com/)
+
+Houdini 的蓝图
+-----------
+
+了解到这里，部分开发者可能会说：“我不需要这些花里胡哨的技术，并不能带收益。我只想简简单单的写几个页面，做做普通的 Web App，并不想试图干预浏览器的渲染过程从而实现一些实验性或炫酷的功能。” 如果这样想的话，我们不妨退一步再去思考。回忆下最近做过的项目，用于实现页面效果所使用到的技术，`grid`布局方式在考虑兼容老版本浏览器时也不得不放弃。我们想控制浏览器渲染页面的过程并不是仅仅为了炫技，更多的是为了帮助开发者们解决以下两个问题：
+
+1.  统一各大浏览器的行为
+2.  像`JavaScript`一样，在推出新的特性时，我们可以通过`Polyfill`的形式快速的投入生产环境中。
+
+几年过后再回眸，当主流浏览器完全支持`Houdini`的时候。我们可以在浏览器上随心所欲的使用任何 CSS 属性，并且他们都能完美支持。像今天的`grid`布局在旧版本浏览器支持的并不友好的这类问题，那时我们只需要安装对应的`Polyfill`就能解决类似的问题。
+
+如在文中发现有误之处，欢迎反馈、纠正。
+
+写在最后
+----
+
+最后，推荐一套 TS 全系列的教程吧。 近期在提升 TS，收藏了一套很不错的教程，无偿分享给 xdm [www.yidengxuetang.com/pub-page/in…](https://www.yidengxuetang.com/pub-page/index.html)
+
+参考链接
+----
+
+[一文详解 CSS-in-JS](https://mp.weixin.qq.com/s/v0IB2mZHrF0l2ks5pVsO1g)
+
+[Houdini: Maybe The Most Exciting Development In CSS You’ve Never Heard Of](https://www.smashingmagazine.com/2016/03/houdini-maybe-the-most-exciting-development-in-css-youve-never-heard-of/)
+
+[Is Houdini ready yet](https://ishoudinireadyyet.com/)
+
+[CSS-TAG Houdini Editor Drafts](https://drafts.css-houdini.org/)
+
+[Houdini Demo](https://css-houdini.rocks/masonry)
