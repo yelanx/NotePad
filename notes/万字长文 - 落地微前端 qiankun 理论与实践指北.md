@@ -1,9 +1,5 @@
 > 本文由 [简悦 SimpRead](http://ksria.com/simpread/) 转码， 原文地址 [juejin.cn](https://juejin.cn/post/7069566144750813197)
 
-“一千个人眼里有一千个哈姆雷特” 本文仅是作者这段时间对微前端的思考与感悟，文笔拙劣，多多海涵。微前端的实现方式有很多种，但是微前端并不完美。只有适合自己、适合团队的才是最佳实践。希望本文能帮助您在微前端学习之路上节约一点时间。也欢迎大家提出意见、踊跃的反馈、希望能与大家共进步，加油～
-
-由于本文较长（PS：本人懒得分篇），目录一至目录七偏理论知识，目录七之后为实践操作与思考，大家可以适当的跳跃来看
-
 **微前端是什么？**
 
 *   微前端不是特指某一项技术，而是一种思想。是由 2016 年 [ThoughtWorks Technology Radar](https://link.juejin.cn?target=https%3A%2F%2Fwww.thoughtworks.com%2Fradar%2Ftechniques%2Fmicro-frontends "https://www.thoughtworks.com/radar/techniques/micro-frontends") 中提出的，借鉴后端微服务的架构模式，将 Web 应用由单一的单体应用转变为多个小型前端应用，聚合为一的应用。
